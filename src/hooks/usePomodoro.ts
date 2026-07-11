@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEFAULT_SETTINGS, type PomodoroSettings, type PomodoroState, type SessionType, type TimerStatus } from '../types';
 import { playSessionEndBeep } from '../utils/audio';
 
+// Vite worker import syntax
+import TimerWorker from '../workers/timer.worker?worker';
+
 function getSessionDuration(session: SessionType, settings: PomodoroSettings): number {
     switch (session) {
         case 'work': return settings.workDuration * 60;
@@ -22,7 +25,7 @@ function getNextSession(
 
 export interface UsePomodoroReturn {
     state: PomodoroState;
-    drift: number;           // seconds behind wall clock, for bug demo
+    drift: number;
     start: () => void;
     pause: () => void;
     reset: () => void;
@@ -38,15 +41,15 @@ export function usePomodoro(): UsePomodoroReturn {
     const [settings, setSettings] = useState<PomodoroSettings>(DEFAULT_SETTINGS);
     const [drift, setDrift] = useState(0);
 
-    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const workerRef = useRef<Worker | null>(null);
     const sessionRef = useRef(session);
     const completedRef = useRef(completedPomodoros);
     const settingsRef = useRef(settings);
     const secondsLeftRef = useRef(secondsLeft);
 
-    // Drift tracking refs
-    const startedAtWallRef = useRef<number | null>(null);   // Date.now() when last started
-    const secondsAtStartRef = useRef<number>(0);             // secondsLeft when last started
+    // Drift tracking
+    const startedAtWallRef = useRef<number | null>(null);
+    const secondsAtStartRef = useRef<number>(0);
 
     useEffect(() => { sessionRef.current = session; }, [session]);
     useEffect(() => { completedRef.current = completedPomodoros; }, [completedPomodoros]);
@@ -54,20 +57,20 @@ export function usePomodoro(): UsePomodoroReturn {
     useEffect(() => { secondsLeftRef.current = secondsLeft; }, [secondsLeft]);
 
     const clearTimer = () => {
-        if (intervalRef.current !== null) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
+        if (workerRef.current) {
+            workerRef.current.postMessage({ type: 'STOP' });
+            workerRef.current.terminate();
+            workerRef.current = null;
         }
         startedAtWallRef.current = null;
     };
 
     const tick = useCallback(() => {
-        // Update drift on every tick: compare wall clock elapsed vs timer elapsed
+        // Drift: wall clock vs timer. Worker runs independently so this should stay near 0
         if (startedAtWallRef.current !== null) {
             const wallElapsed = (Date.now() - startedAtWallRef.current) / 1000;
             const timerElapsed = secondsAtStartRef.current - secondsLeftRef.current;
-            const currentDrift = wallElapsed - timerElapsed;
-            setDrift(Math.max(0, currentDrift - 1)); // subtract 1 for current tick
+            setDrift(Math.max(0, wallElapsed - timerElapsed - 1));
         }
 
         setSecondsLeft(prev => {
@@ -87,7 +90,6 @@ export function usePomodoro(): UsePomodoroReturn {
                 setSession(nextSession);
                 setStatus('idle');
                 setSecondsLeft(getSessionDuration(nextSession, settingsRef.current));
-
                 return 0;
             }
             return prev - 1;
@@ -95,15 +97,19 @@ export function usePomodoro(): UsePomodoroReturn {
     }, []);
 
     const start = useCallback(() => {
-        if (intervalRef.current !== null) return;
+        if (workerRef.current) return;
 
-        // Record wall clock snapshot for drift tracking
         startedAtWallRef.current = Date.now();
         secondsAtStartRef.current = secondsLeftRef.current;
         setDrift(0);
-
         setStatus('running');
-        intervalRef.current = setInterval(tick, 1000);
+
+        const worker = new TimerWorker();
+        worker.addEventListener('message', (e: MessageEvent<{ type: string }>) => {
+            if (e.data.type === 'TICK') tick();
+        });
+        worker.postMessage({ type: 'START' });
+        workerRef.current = worker;
     }, [tick]);
 
     const pause = useCallback(() => {
