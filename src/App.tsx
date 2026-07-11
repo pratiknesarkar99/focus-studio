@@ -4,16 +4,28 @@ import { TimerDisplay } from './components/TimerDisplay';
 import { Settings } from './components/Settings';
 import { SessionBadge } from './components/SessionBadge';
 import { DriftIndicator } from './components/DriftIndicator';
+import { TaskSelector } from './components/TaskSelector';
+import { SessionLog } from './components/SessionLog';
 import './App.css';
 
 export default function App() {
-  const { state, drift, start, pause, reset, skip, updateSettings } = usePomodoro();
+  const {
+    state, drift,
+    taskTag, setTaskTag,
+    sessionLogKey,
+    start, pause, reset, skip, updateSettings,
+  } = usePomodoro();
+
+  const isActive = state.status === 'running' || state.status === 'paused';
 
   return (
     <div className="app">
       <header className="app-header">
         <h1 className="app-title">Focus Studio</h1>
-        <Settings settings={state.settings} onSave={updateSettings} />
+        <div className="header-actions">
+          <SessionLog refreshKey={sessionLogKey} />
+          <Settings settings={state.settings} onSave={updateSettings} />
+        </div>
       </header>
 
       <main className="app-main">
@@ -35,6 +47,14 @@ export default function App() {
           onReset={reset}
           onSkip={skip}
         />
+
+        {state.session === 'work' && (
+          <TaskSelector
+            value={taskTag}
+            onChange={setTaskTag}
+            disabled={isActive}
+          />
+        )}
 
         <DriftIndicator
           drift={drift}

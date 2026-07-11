@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEFAULT_SETTINGS, type PomodoroSettings, type PomodoroState, type SessionType, type TimerStatus } from '../types';
 import { playSessionEndBeep } from '../utils/audio';
-
-// Vite worker import syntax
+import { useSessionHistory } from './useSessionHistory';
 import TimerWorker from '../workers/timer.worker?worker';
 
 function getSessionDuration(session: SessionType, settings: PomodoroSettings): number {
@@ -26,6 +25,9 @@ function getNextSession(
 export interface UsePomodoroReturn {
     state: PomodoroState;
     drift: number;
+    taskTag: string;
+    setTaskTag: (tag: string) => void;
+    sessionLogKey: number;
     start: () => void;
     pause: () => void;
     reset: () => void;
@@ -40,21 +42,25 @@ export function usePomodoro(): UsePomodoroReturn {
     const [completedPomodoros, setCompletedPomodoros] = useState(0);
     const [settings, setSettings] = useState<PomodoroSettings>(DEFAULT_SETTINGS);
     const [drift, setDrift] = useState(0);
+    const [taskTag, setTaskTag] = useState('');
+    const [sessionLogKey, setSessionLogKey] = useState(0);
 
     const workerRef = useRef<Worker | null>(null);
     const sessionRef = useRef(session);
     const completedRef = useRef(completedPomodoros);
     const settingsRef = useRef(settings);
     const secondsLeftRef = useRef(secondsLeft);
-
-    // Drift tracking
+    const taskTagRef = useRef(taskTag);
     const startedAtWallRef = useRef<number | null>(null);
     const secondsAtStartRef = useRef<number>(0);
+
+    const { saveSession } = useSessionHistory();
 
     useEffect(() => { sessionRef.current = session; }, [session]);
     useEffect(() => { completedRef.current = completedPomodoros; }, [completedPomodoros]);
     useEffect(() => { settingsRef.current = settings; }, [settings]);
     useEffect(() => { secondsLeftRef.current = secondsLeft; }, [secondsLeft]);
+    useEffect(() => { taskTagRef.current = taskTag; }, [taskTag]);
 
     const clearTimer = () => {
         if (workerRef.current) {
@@ -65,8 +71,9 @@ export function usePomodoro(): UsePomodoroReturn {
         startedAtWallRef.current = null;
     };
 
+    const bumpLogKey = () => setSessionLogKey(k => k + 1);
+
     const tick = useCallback(() => {
-        // Drift: wall clock vs timer. Worker runs independently so this should stay near 0
         if (startedAtWallRef.current !== null) {
             const wallElapsed = (Date.now() - startedAtWallRef.current) / 1000;
             const timerElapsed = secondsAtStartRef.current - secondsLeftRef.current;
@@ -75,10 +82,18 @@ export function usePomodoro(): UsePomodoroReturn {
 
         setSecondsLeft(prev => {
             if (prev <= 1) {
+                const currentSession = sessionRef.current;
+
+                saveSession({
+                    taskTag: taskTagRef.current,
+                    sessionType: currentSession,
+                    durationSecs: getSessionDuration(currentSession, settingsRef.current),
+                    wasCompleted: true,
+                }).then(bumpLogKey);
+
                 clearTimer();
                 playSessionEndBeep();
 
-                const currentSession = sessionRef.current;
                 const newCompleted = currentSession === 'work'
                     ? completedRef.current + 1
                     : completedRef.current;
@@ -94,11 +109,10 @@ export function usePomodoro(): UsePomodoroReturn {
             }
             return prev - 1;
         });
-    }, []);
+    }, [saveSession]);
 
     const start = useCallback(() => {
         if (workerRef.current) return;
-
         startedAtWallRef.current = Date.now();
         secondsAtStartRef.current = secondsLeftRef.current;
         setDrift(0);
@@ -125,18 +139,32 @@ export function usePomodoro(): UsePomodoroReturn {
     }, []);
 
     const skip = useCallback(() => {
+        const currentSession = sessionRef.current;
+        const secondsElapsed = secondsAtStartRef.current - secondsLeftRef.current;
+
+        // Only save if at least 10 seconds elapsed (avoids accidental skips)
+        if (secondsElapsed >= 10) {
+            saveSession({
+                taskTag: taskTagRef.current,
+                sessionType: currentSession,
+                durationSecs: getSessionDuration(currentSession, settingsRef.current),
+                wasCompleted: false,
+            }).then(bumpLogKey);
+        }
+
         clearTimer();
         setDrift(0);
-        const currentSession = sessionRef.current;
+
         const newCompleted = currentSession === 'work'
             ? completedRef.current + 1
             : completedRef.current;
         setCompletedPomodoros(newCompleted);
+
         const nextSession = getNextSession(currentSession, newCompleted, settingsRef.current);
         setSession(nextSession);
         setStatus('idle');
         setSecondsLeft(getSessionDuration(nextSession, settingsRef.current));
-    }, []);
+    }, [saveSession]);
 
     const updateSettings = useCallback((newSettings: PomodoroSettings) => {
         clearTimer();
@@ -151,6 +179,9 @@ export function usePomodoro(): UsePomodoroReturn {
     return {
         state: { status, session, secondsLeft, completedPomodoros, settings },
         drift,
+        taskTag,
+        setTaskTag,
+        sessionLogKey,
         start,
         pause,
         reset,
