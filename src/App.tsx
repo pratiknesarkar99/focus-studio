@@ -3,10 +3,11 @@ import { Controls } from './components/Controls';
 import { TimerDisplay } from './components/TimerDisplay';
 import { Settings } from './components/Settings';
 import { SessionBadge } from './components/SessionBadge';
+import { DriftIndicator } from './components/DriftIndicator';
 import './App.css';
 
 export default function App() {
-  const { state, start, pause, reset, skip, updateSettings } = usePomodoro();
+  const { state, drift, start, pause, reset, skip, updateSettings } = usePomodoro();
 
   return (
     <div className="app">
@@ -33,6 +34,11 @@ export default function App() {
           onPause={pause}
           onReset={reset}
           onSkip={skip}
+        />
+
+        <DriftIndicator
+          drift={drift}
+          show={state.status === 'running'}
         />
       </main>
     </div>
