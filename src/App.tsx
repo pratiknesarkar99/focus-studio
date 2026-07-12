@@ -6,6 +6,7 @@ import { SessionBadge } from './components/SessionBadge';
 import { DriftIndicator } from './components/DriftIndicator';
 import { TaskSelector } from './components/TaskSelector';
 import { SessionLog } from './components/SessionLog';
+import { Dashboard } from './components/Dashboard';
 import './App.css';
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
       <header className="app-header">
         <h1 className="app-title">Focus Studio</h1>
         <div className="header-actions">
+          <Dashboard refreshKey={sessionLogKey} />
           <SessionLog refreshKey={sessionLogKey} />
           <Settings settings={state.settings} onSave={updateSettings} />
         </div>
