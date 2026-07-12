@@ -4,6 +4,7 @@ import {
     ResponsiveContainer, Cell,
 } from 'recharts';
 import { useAnalytics, type AnalyticsSummary } from '../hooks/useAnalytics';
+import { AIInsights } from './AIInsights';
 
 interface Props {
     refreshKey: number;
@@ -53,20 +54,10 @@ export function Dashboard({ refreshKey }: Props) {
 
                     {!loading && data && (
                         <>
-                            {/* Stat row */}
                             <div className="stat-row">
-                                <StatCard
-                                    label="Focus sessions"
-                                    value={data.totalSessions}
-                                />
-                                <StatCard
-                                    label="Focus time"
-                                    value={`${data.totalFocusMins}m`}
-                                />
-                                <StatCard
-                                    label="Completion"
-                                    value={`${data.completionRate}%`}
-                                />
+                                <StatCard label="Focus sessions" value={data.totalSessions} />
+                                <StatCard label="Focus time" value={`${data.totalFocusMins}m`} />
+                                <StatCard label="Completion" value={`${data.completionRate}%`} />
                                 <StatCard
                                     label="Streak"
                                     value={`${data.currentStreak}d`}
@@ -74,7 +65,6 @@ export function Dashboard({ refreshKey }: Props) {
                                 />
                             </div>
 
-                            {/* Daily focus bar chart */}
                             <div className="chart-section">
                                 <h4 className="chart-label">Daily focus (minutes)</h4>
                                 <ResponsiveContainer width="100%" height={140}>
@@ -99,17 +89,13 @@ export function Dashboard({ refreshKey }: Props) {
                                         />
                                         <Bar dataKey="focusMins" radius={[4, 4, 0, 0]}>
                                             {data.dailyFocus.map((entry, i) => (
-                                                <Cell
-                                                    key={i}
-                                                    fill={entry.focusMins > 0 ? ACCENT : MUTED}
-                                                />
+                                                <Cell key={i} fill={entry.focusMins > 0 ? ACCENT : MUTED} />
                                             ))}
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
 
-                            {/* Hourly heatmap row */}
                             <div className="chart-section">
                                 <h4 className="chart-label">Activity by hour</h4>
                                 <div className="hour-grid">
@@ -132,11 +118,13 @@ export function Dashboard({ refreshKey }: Props) {
                                 </div>
                             </div>
 
-                            {/* Tag breakdown */}
                             {data.tagBreakdown.length > 0 && (
                                 <div className="chart-section">
                                     <h4 className="chart-label">Sessions by tag</h4>
-                                    <ResponsiveContainer width="100%" height={Math.min(data.tagBreakdown.length * 36 + 20, 200)}>
+                                    <ResponsiveContainer
+                                        width="100%"
+                                        height={Math.min(data.tagBreakdown.length * 36 + 20, 200)}
+                                    >
                                         <BarChart
                                             data={data.tagBreakdown}
                                             layout="vertical"
@@ -167,6 +155,9 @@ export function Dashboard({ refreshKey }: Props) {
                                     </ResponsiveContainer>
                                 </div>
                             )}
+
+                            {/* AI Insights lives at the bottom, below all charts */}
+                            <AIInsights summary={data} />
 
                             {data.totalSessions === 0 && (
                                 <p className="dashboard-empty">

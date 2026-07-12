@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEFAULT_SETTINGS, type PomodoroSettings, type PomodoroState, type SessionType, type TimerStatus } from '../types';
 import { playSessionEndBeep } from '../utils/audio';
+import { sendNotification } from '../utils/notifications';
 import { useSessionHistory } from './useSessionHistory';
 import TimerWorker from '../workers/timer.worker?worker';
 
@@ -21,6 +22,12 @@ function getNextSession(
     const isLongBreak = completedPomodoros % settings.longBreakInterval === 0;
     return isLongBreak ? 'longBreak' : 'shortBreak';
 }
+
+const SESSION_NOTIFICATIONS: Record<SessionType, { title: string; body: string }> = {
+    work: { title: 'Focus session complete', body: 'Time for a break. Step away for a few minutes.' },
+    shortBreak: { title: 'Break over', body: 'Ready to focus? Start your next session.' },
+    longBreak: { title: 'Long break over', body: 'Recharged? Time to get back to it.' },
+};
 
 export interface UsePomodoroReturn {
     state: PomodoroState;
@@ -83,6 +90,7 @@ export function usePomodoro(): UsePomodoroReturn {
         setSecondsLeft(prev => {
             if (prev <= 1) {
                 const currentSession = sessionRef.current;
+                const notif = SESSION_NOTIFICATIONS[currentSession];
 
                 saveSession({
                     taskTag: taskTagRef.current,
@@ -93,6 +101,7 @@ export function usePomodoro(): UsePomodoroReturn {
 
                 clearTimer();
                 playSessionEndBeep();
+                sendNotification(notif.title, notif.body);
 
                 const newCompleted = currentSession === 'work'
                     ? completedRef.current + 1
@@ -142,7 +151,6 @@ export function usePomodoro(): UsePomodoroReturn {
         const currentSession = sessionRef.current;
         const secondsElapsed = secondsAtStartRef.current - secondsLeftRef.current;
 
-        // Only save if at least 10 seconds elapsed (avoids accidental skips)
         if (secondsElapsed >= 10) {
             saveSession({
                 taskTag: taskTagRef.current,

@@ -560,3 +560,164 @@
     white-space: nowrap;
     pointer-events: none;
 }
+
+/* AI Insights */
+.ai-insights {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.ai-insights-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ai-idle {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ai-note {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+}
+
+.ai-note--pulse {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
+}
+
+.ai-loading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ai-progress-track {
+    height: 4px;
+    background: var(--color-surface-2);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.ai-progress-fill {
+    height: 100%;
+    background: var(--color-accent);
+    border-radius: 999px;
+    transition: width 0.3s ease;
+}
+
+.ai-insight-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.ai-insight-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    color: var(--color-text);
+    line-height: 1.5;
+}
+
+.ai-insight-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    flex-shrink: 0;
+    margin-top: 0.45rem;
+}
+
+.ai-error {
+    font-size: 0.75rem;
+    color: var(--color-danger);
+    line-height: 1.5;
+}
+
+/* Keyboard hint */
+.keyboard-hint {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    opacity: 0.5;
+    letter-spacing: 0.05em;
+    text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 520px) {
+    .app {
+        padding: 1.25rem 1rem;
+    }
+
+    .app-header {
+        margin-bottom: 2.5rem;
+    }
+
+    .timer-digits {
+        font-size: clamp(4rem, 22vw, 6rem);
+    }
+
+    .dashboard {
+        width: calc(100vw - 2rem);
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .session-log {
+        width: calc(100vw - 2rem);
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .settings-panel {
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .stat-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .controls {
+        gap: 0.75rem;
+    }
+
+    .btn--primary {
+        min-width: 100px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .timer-digits__sep {
+        animation: none;
+        opacity: 0.3;
+    }
+
+    .ai-note--pulse {
+        animation: none;
+    }
+}

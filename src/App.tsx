@@ -1,4 +1,7 @@
+import { useEffect, useRef } from 'react';
 import { usePomodoro } from './hooks/usePomodoro';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { requestNotificationPermission } from './utils/notifications';
 import { Controls } from './components/Controls';
 import { TimerDisplay } from './components/TimerDisplay';
 import { Settings } from './components/Settings';
@@ -16,6 +19,38 @@ export default function App() {
     sessionLogKey,
     start, pause, reset, skip, updateSettings,
   } = usePomodoro();
+
+  const notifRequested = useRef(false);
+
+  // Request notification permission on first start attempt
+  const handleStart = () => {
+    if (!notifRequested.current) {
+      notifRequested.current = true;
+      requestNotificationPermission();
+    }
+    start();
+  };
+
+  // Update document title to show timer when running
+  useEffect(() => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const mins = Math.floor(state.secondsLeft / 60);
+    const secs = state.secondsLeft % 60;
+
+    if (state.status === 'running' || state.status === 'paused') {
+      document.title = `${pad(mins)}:${pad(secs)} — Focus Studio`;
+    } else {
+      document.title = 'Focus Studio';
+    }
+  }, [state.secondsLeft, state.status]);
+
+  useKeyboardShortcuts({
+    status: state.status,
+    onStart: handleStart,
+    onPause: pause,
+    onReset: reset,
+    onSkip: skip,
+  });
 
   const isActive = state.status === 'running' || state.status === 'paused';
 
@@ -44,7 +79,7 @@ export default function App() {
 
         <Controls
           status={state.status}
-          onStart={start}
+          onStart={handleStart}
           onPause={pause}
           onReset={reset}
           onSkip={skip}
@@ -62,6 +97,10 @@ export default function App() {
           drift={drift}
           show={state.status === 'running'}
         />
+
+        <p className="keyboard-hint">
+          Space to start/pause · R to reset · S to skip
+        </p>
       </main>
     </div>
   );
