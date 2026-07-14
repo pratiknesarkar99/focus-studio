@@ -5,13 +5,11 @@ export type InsightStatus = 'idle' | 'loading-model' | 'generating' | 'done' | '
 
 export interface InsightState {
     status: InsightStatus;
-    progress: number;      // 0-100 during model download
-    insights: string[];    // final output sentences
+    progress: number;
+    insights: string[];
     error: string | null;
 }
 
-// Module-level singleton: model downloads once per browser session,
-// not once per component mount.
 let _pipe: any = null;
 
 function buildPrompt(summary: AnalyticsSummary): string {
@@ -33,11 +31,10 @@ function buildPrompt(summary: AnalyticsSummary): string {
             : null,
     ].filter(Boolean).join('\n');
 
-    // TinyLlama chat format
     return [
         '<|system|>',
         'You are a productivity coach. Based on the stats below, write exactly 2 specific',
-        'one-sentence insights about this person\'s focus patterns.',
+        "one-sentence insights about this person's focus patterns.",
         'Each insight must be under 20 words. Separate them with a newline. No bullet points.',
         '</s>',
         '<|user|>',
@@ -70,10 +67,10 @@ export function useInsights() {
             if (!_pipe) {
                 setState({ status: 'loading-model', progress: 0, insights: [], error: null });
 
-                const { pipeline, env } = await import('@xenova/transformers');
+                const { pipeline, env } = await import('@huggingface/transformers');
 
-                // Always fetch from Hugging Face CDN, never look for local files
                 env.allowLocalModels = false;
+                env.useBrowserCache = true;
 
                 _pipe = await pipeline(
                     'text-generation',
@@ -113,11 +110,12 @@ export function useInsights() {
                 insights: sentences.slice(0, 3),
                 error: null,
             });
-        } catch {
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
             setState(s => ({
                 ...s,
                 status: 'error',
-                error: 'Model failed to load. Your browser may not support WebAssembly, or the download was interrupted.',
+                error: `Failed to load model: ${message}`,
             }));
         }
     }, []);
