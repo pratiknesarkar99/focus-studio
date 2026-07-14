@@ -53,6 +53,8 @@ export function usePomodoro(): UsePomodoroReturn {
     const [sessionLogKey, setSessionLogKey] = useState(0);
 
     const workerRef = useRef<Worker | null>(null);
+    const fallbackIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const workerHealthCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const sessionRef = useRef(session);
     const completedRef = useRef(completedPomodoros);
     const settingsRef = useRef(settings);
@@ -74,6 +76,14 @@ export function usePomodoro(): UsePomodoroReturn {
             workerRef.current.postMessage({ type: 'STOP' });
             workerRef.current.terminate();
             workerRef.current = null;
+        }
+        if (fallbackIntervalRef.current !== null) {
+            clearInterval(fallbackIntervalRef.current);
+            fallbackIntervalRef.current = null;
+        }
+        if (workerHealthCheckRef.current !== null) {
+            clearTimeout(workerHealthCheckRef.current);
+            workerHealthCheckRef.current = null;
         }
         startedAtWallRef.current = null;
     };
@@ -120,19 +130,50 @@ export function usePomodoro(): UsePomodoroReturn {
         });
     }, [saveSession]);
 
+    const startFallbackInterval = () => {
+        if (fallbackIntervalRef.current !== null) return;
+        fallbackIntervalRef.current = setInterval(tick, 1000);
+    };
+
     const start = useCallback(() => {
-        if (workerRef.current) return;
+        if (workerRef.current || fallbackIntervalRef.current) return;
         startedAtWallRef.current = Date.now();
         secondsAtStartRef.current = secondsLeftRef.current;
         setDrift(0);
         setStatus('running');
 
-        const worker = new TimerWorker();
-        worker.addEventListener('message', (e: MessageEvent<{ type: string }>) => {
-            if (e.data.type === 'TICK') tick();
-        });
-        worker.postMessage({ type: 'START' });
-        workerRef.current = worker;
+        let tickReceived = false;
+
+        try {
+            const worker = new TimerWorker();
+            worker.addEventListener('message', (e: MessageEvent<{ type: string }>) => {
+                if (e.data.type === 'TICK') {
+                    tickReceived = true;
+                    tick();
+                }
+            });
+            worker.addEventListener('error', () => {
+                workerRef.current = null;
+                startFallbackInterval();
+            });
+            worker.postMessage({ type: 'START' });
+            workerRef.current = worker;
+
+            // Some browsers (e.g. Safari under COEP: require-corp) silently fail
+            // to run blob-based module workers instead of throwing — watch for a
+            // missed first tick and fall back to an in-thread interval.
+            workerHealthCheckRef.current = setTimeout(() => {
+                workerHealthCheckRef.current = null;
+                if (!tickReceived && workerRef.current) {
+                    workerRef.current.terminate();
+                    workerRef.current = null;
+                    startFallbackInterval();
+                }
+            }, 1500);
+        } catch {
+            workerRef.current = null;
+            startFallbackInterval();
+        }
     }, [tick]);
 
     const pause = useCallback(() => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePomodoro } from './hooks/usePomodoro';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { requestNotificationPermission } from './utils/notifications';
@@ -12,6 +12,8 @@ import { SessionLog } from './components/SessionLog';
 import { Dashboard } from './components/Dashboard';
 import './App.css';
 
+type ActivePanel = 'none' | 'stats' | 'log' | 'settings';
+
 export default function App() {
   const {
     state, drift,
@@ -20,23 +22,25 @@ export default function App() {
     start, pause, reset, skip, updateSettings,
   } = usePomodoro();
 
+  const [activePanel, setActivePanel] = useState<ActivePanel>('none');
   const notifRequested = useRef(false);
 
-  // Request notification permission on first start attempt
-  const handleStart = () => {
+  const togglePanel = (panel: ActivePanel) => {
+    setActivePanel(p => p === panel ? 'none' : panel);
+  };
+
+  const handleStart = useCallback(() => {
     if (!notifRequested.current) {
       notifRequested.current = true;
       requestNotificationPermission();
     }
     start();
-  };
+  }, [start]);
 
-  // Update document title to show timer when running
   useEffect(() => {
     const pad = (n: number) => String(n).padStart(2, '0');
     const mins = Math.floor(state.secondsLeft / 60);
     const secs = state.secondsLeft % 60;
-
     if (state.status === 'running' || state.status === 'paused') {
       document.title = `${pad(mins)}:${pad(secs)} — Focus Studio`;
     } else {
@@ -58,12 +62,49 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <h1 className="app-title">Focus Studio</h1>
-        <div className="header-actions">
-          <Dashboard refreshKey={sessionLogKey} />
-          <SessionLog refreshKey={sessionLogKey} />
-          <Settings settings={state.settings} onSave={updateSettings} />
-        </div>
+        <nav className="app-nav">
+          <button
+            className={`nav-btn ${activePanel === 'stats' ? 'nav-btn--active' : ''}`}
+            onClick={() => togglePanel('stats')}
+          >
+            Stats
+          </button>
+          <button
+            className={`nav-btn ${activePanel === 'log' ? 'nav-btn--active' : ''}`}
+            onClick={() => togglePanel('log')}
+          >
+            Log
+          </button>
+          <button
+            className={`nav-btn ${activePanel === 'settings' ? 'nav-btn--active' : ''}`}
+            onClick={() => togglePanel('settings')}
+          >
+            Settings
+          </button>
+        </nav>
       </header>
+
+      {/* Inline panels — render above timer so they push content down cleanly */}
+      {activePanel === 'stats' && (
+        <div className="panel-wrapper">
+          <Dashboard refreshKey={sessionLogKey} />
+        </div>
+      )}
+
+      {activePanel === 'log' && (
+        <div className="panel-wrapper">
+          <SessionLog refreshKey={sessionLogKey} />
+        </div>
+      )}
+
+      {activePanel === 'settings' && (
+        <div className="panel-wrapper">
+          <Settings settings={state.settings} onSave={(s) => {
+            updateSettings(s);
+            setActivePanel('none');
+          }} />
+        </div>
+      )}
 
       <main className="app-main">
         <SessionBadge

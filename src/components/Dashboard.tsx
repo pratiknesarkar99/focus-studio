@@ -26,147 +26,141 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
 }
 
 export function Dashboard({ refreshKey }: Props) {
-    const [open, setOpen] = useState(false);
     const [data, setData] = useState<AnalyticsSummary | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const { computeSummary } = useAnalytics();
 
     useEffect(() => {
-        if (!open) return;
         setLoading(true);
         computeSummary(14).then(s => {
             setData(s);
             setLoading(false);
         });
-    }, [open, refreshKey, computeSummary]);
+    }, [refreshKey, computeSummary]);
+
+    if (loading) return <p className="panel-loading">Computing...</p>;
+    if (!data) return null;
 
     return (
-        <div className="dashboard-wrapper">
-            <button className="btn btn--ghost btn--small" onClick={() => setOpen(o => !o)}>
-                {open ? 'Hide Stats' : 'Stats'}
-            </button>
+        <div className="dashboard-grid">
 
-            {open && (
-                <div className="dashboard">
-                    <h3 className="dashboard-title">Last 14 Days</h3>
+            {/* Stat cards */}
+            <div className="stat-row">
+                <StatCard label="Focus sessions" value={data.totalSessions} />
+                <StatCard label="Focus time" value={`${data.totalFocusMins}m`} />
+                <StatCard label="Completion" value={`${data.completionRate}%`} />
+                <StatCard
+                    label="Streak"
+                    value={`${data.currentStreak}d`}
+                    sub={data.currentStreak >= 3 ? 'Keep going' : ''}
+                />
+            </div>
 
-                    {loading && <p className="dashboard-loading">Computing...</p>}
-
-                    {!loading && data && (
-                        <>
-                            <div className="stat-row">
-                                <StatCard label="Focus sessions" value={data.totalSessions} />
-                                <StatCard label="Focus time" value={`${data.totalFocusMins}m`} />
-                                <StatCard label="Completion" value={`${data.completionRate}%`} />
-                                <StatCard
-                                    label="Streak"
-                                    value={`${data.currentStreak}d`}
-                                    sub={data.currentStreak >= 3 ? 'Keep going' : ''}
-                                />
-                            </div>
-
-                            <div className="chart-section">
-                                <h4 className="chart-label">Daily focus (minutes)</h4>
-                                <ResponsiveContainer width="100%" height={140}>
-                                    <BarChart data={data.dailyFocus} barSize={14}>
-                                        <XAxis
-                                            dataKey="date"
-                                            tick={{ fill: TEXT_MUTED, fontSize: 10 }}
-                                            axisLine={false}
-                                            tickLine={false}
-                                            interval={1}
-                                        />
-                                        <YAxis hide />
-                                        <Tooltip
-                                            contentStyle={{
-                                                background: '#1a1a22',
-                                                border: '1px solid #2e2e3e',
-                                                borderRadius: 8,
-                                                fontSize: 12,
-                                                color: '#e8e8f0',
-                                            }}
-                                            formatter={(v) => [`${v ?? 0} min`, 'Focus']}
-                                        />
-                                        <Bar dataKey="focusMins" radius={[4, 4, 0, 0]}>
-                                            {data.dailyFocus.map((entry, i) => (
-                                                <Cell key={i} fill={entry.focusMins > 0 ? ACCENT : MUTED} />
-                                            ))}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-
-                            <div className="chart-section">
-                                <h4 className="chart-label">Activity by hour</h4>
-                                <div className="hour-grid">
-                                    {data.hourlyActivity.map(h => {
-                                        const max = Math.max(...data.hourlyActivity.map(x => x.sessions), 1);
-                                        const opacity = h.sessions === 0 ? 0.08 : 0.2 + (h.sessions / max) * 0.8;
-                                        return (
-                                            <div
-                                                key={h.hour}
-                                                className="hour-cell"
-                                                title={`${h.label}: ${h.sessions} session${h.sessions !== 1 ? 's' : ''}`}
-                                                style={{ background: `rgba(124, 106, 247, ${opacity})` }}
-                                            >
-                                                {[6, 9, 12, 15, 18, 21].includes(h.hour) && (
-                                                    <span className="hour-cell-label">{h.label}</span>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {data.tagBreakdown.length > 0 && (
-                                <div className="chart-section">
-                                    <h4 className="chart-label">Sessions by tag</h4>
-                                    <ResponsiveContainer
-                                        width="100%"
-                                        height={Math.min(data.tagBreakdown.length * 36 + 20, 200)}
-                                    >
-                                        <BarChart
-                                            data={data.tagBreakdown}
-                                            layout="vertical"
-                                            barSize={12}
-                                            margin={{ left: 8 }}
-                                        >
-                                            <XAxis type="number" hide />
-                                            <YAxis
-                                                type="category"
-                                                dataKey="tag"
-                                                width={90}
-                                                tick={{ fill: TEXT_MUTED, fontSize: 11 }}
-                                                axisLine={false}
-                                                tickLine={false}
-                                            />
-                                            <Tooltip
-                                                contentStyle={{
-                                                    background: '#1a1a22',
-                                                    border: '1px solid #2e2e3e',
-                                                    borderRadius: 8,
-                                                    fontSize: 12,
-                                                    color: '#e8e8f0',
-                                                }}
-                                                formatter={(v) => [`${v} sessions`, '']}
-                                            />
-                                            <Bar dataKey="sessions" fill={BREAK_COLOR} radius={[0, 4, 4, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            )}
-
-                            {/* AI Insights lives at the bottom, below all charts */}
-                            <AIInsights summary={data} />
-
-                            {data.totalSessions === 0 && (
-                                <p className="dashboard-empty">
-                                    Complete a few focus sessions to see your patterns here.
-                                </p>
-                            )}
-                        </>
-                    )}
+            {/* Charts row: daily + hourly side by side on desktop */}
+            <div className="charts-row">
+                <div className="chart-section">
+                    <h4 className="chart-label">Daily focus (minutes)</h4>
+                    <ResponsiveContainer width="100%" height={180}>
+                        <BarChart data={data.dailyFocus} barSize={16}>
+                            <XAxis
+                                dataKey="date"
+                                tick={{ fill: TEXT_MUTED, fontSize: 11 }}
+                                axisLine={false}
+                                tickLine={false}
+                                interval={1}
+                            />
+                            <YAxis hide />
+                            <Tooltip
+                                contentStyle={{
+                                    background: '#1a1a22',
+                                    border: '1px solid #2e2e3e',
+                                    borderRadius: 8,
+                                    fontSize: 12,
+                                    color: '#e8e8f0',
+                                }}
+                                formatter={(v) => [`${v ?? 0} min`, 'Focus']}
+                            />
+                            <Bar dataKey="focusMins" radius={[4, 4, 0, 0]}>
+                                {data.dailyFocus.map((entry, i) => (
+                                    <Cell key={i} fill={entry.focusMins > 0 ? ACCENT : MUTED} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
                 </div>
+
+                <div className="chart-section">
+                    <h4 className="chart-label">Activity by hour</h4>
+                    <div className="hour-grid">
+                        {data.hourlyActivity.map(h => {
+                            const max = Math.max(...data.hourlyActivity.map(x => x.sessions), 1);
+                            const opacity = h.sessions === 0 ? 0.08 : 0.2 + (h.sessions / max) * 0.8;
+                            return (
+                                <div
+                                    key={h.hour}
+                                    className="hour-cell"
+                                    title={`${h.label}: ${h.sessions} session${h.sessions !== 1 ? 's' : ''}`}
+                                    style={{ background: `rgba(124, 106, 247, ${opacity})` }}
+                                >
+                                    {[6, 9, 12, 15, 18, 21].includes(h.hour) && (
+                                        <span className="hour-cell-label">{h.label}</span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* Tag + AI side by side on desktop */}
+            <div className="charts-row">
+                {data.tagBreakdown.length > 0 && (
+                    <div className="chart-section">
+                        <h4 className="chart-label">Sessions by tag</h4>
+                        <ResponsiveContainer
+                            width="100%"
+                            height={Math.min(data.tagBreakdown.length * 40 + 20, 220)}
+                        >
+                            <BarChart
+                                data={data.tagBreakdown}
+                                layout="vertical"
+                                barSize={14}
+                                margin={{ left: 8 }}
+                            >
+                                <XAxis type="number" hide />
+                                <YAxis
+                                    type="category"
+                                    dataKey="tag"
+                                    width={100}
+                                    tick={{ fill: TEXT_MUTED, fontSize: 12 }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                />
+                                <Tooltip
+                                    contentStyle={{
+                                        background: '#1a1a22',
+                                        border: '1px solid #2e2e3e',
+                                        borderRadius: 8,
+                                        fontSize: 12,
+                                        color: '#e8e8f0',
+                                    }}
+                                    formatter={(v) => [`${v ?? 0} sessions`, '']}
+                                />
+                                <Bar dataKey="sessions" fill={BREAK_COLOR} radius={[0, 4, 4, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                )}
+
+                <div className="chart-section">
+                    <AIInsights summary={data} />
+                </div>
+            </div>
+
+            {data.totalSessions === 0 && (
+                <p className="panel-empty">
+                    Complete a few focus sessions to see your patterns here.
+                </p>
             )}
         </div>
     );
