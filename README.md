@@ -4,7 +4,14 @@ A Pomodoro-based productivity tracker with session analytics and in-browser AI i
 
 ## Live Demo
 
-[focus-studio.vercel.app](https://your-url.vercel.app)
+<img width="978" height="602" alt="image" src="https://github.com/user-attachments/assets/13bef4cd-7b4e-4ae0-83fd-2f8f783868a3" />
+
+<img width="1003" height="669" alt="image" src="https://github.com/user-attachments/assets/d668b4fb-8acf-400f-9c8c-41d4c6ca1664" />
+
+<img width="977" height="568" alt="image" src="https://github.com/user-attachments/assets/03e2d008-681d-4718-9823-3ede0e86570c" />
+
+<img width="704" height="650" alt="image" src="https://github.com/user-attachments/assets/33b63eae-6bd1-4a91-a72c-767a4cfb6b0a" />
+
 
 ## Features
 
