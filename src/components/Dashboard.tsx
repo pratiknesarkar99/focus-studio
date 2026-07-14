@@ -85,7 +85,7 @@ export function Dashboard({ refreshKey }: Props) {
                                                 fontSize: 12,
                                                 color: '#e8e8f0',
                                             }}
-                                            formatter={(v: number) => [`${v} min`, 'Focus']}
+                                            formatter={(v) => [`${v ?? 0} min`, 'Focus']}
                                         />
                                         <Bar dataKey="focusMins" radius={[4, 4, 0, 0]}>
                                             {data.dailyFocus.map((entry, i) => (
@@ -148,7 +148,7 @@ export function Dashboard({ refreshKey }: Props) {
                                                     fontSize: 12,
                                                     color: '#e8e8f0',
                                                 }}
-                                                formatter={(v: number) => [`${v} sessions`, '']}
+                                                formatter={(v) => [`${v} sessions`, '']}
                                             />
                                             <Bar dataKey="sessions" fill={BREAK_COLOR} radius={[0, 4, 4, 0]} />
                                         </BarChart>

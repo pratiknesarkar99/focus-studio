@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { db, type Session } from '../db/schema';
+import { db } from '../db/schema';
 
 export interface DailyFocus {
     date: string;   // 'Mon 7', 'Tue 8', etc.
